@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта Тривог України (XML API + Dev)</title>
+    <title>Карта Тривог України (XML API - Виправлено)</title>
     <style>
         /* =================================
-        == CSS СТИЛІ (Залишилися без змін) 
+        == CSS СТИЛІ (Без змін) 
         =================================
         */
         :root {
@@ -343,6 +343,7 @@
 
         /**
          * Парсить XML-рядок і повертає масив об'єктів з даними про тривоги.
+         * Оновлено відповідно до наданої структури XML (<stateN>, <name>, <alertnow>)
          */
         function parseXmlAlerts(xmlString) {
             const parser = new DOMParser();
@@ -356,27 +357,30 @@
 
             const alerts = [];
             
-            // Припускаємо, що структура XML містить теги <item>
-            const items = xmlDoc.getElementsByTagName('item'); 
+            // Отримуємо головний контейнер <states>
+            const statesContainer = xmlDoc.getElementsByTagName('states')[0]; 
             
-            for (let item of items) {
-                const regionElement = item.getElementsByTagName('region')[0];
-                const alertElement = item.getElementsByTagName('alert')[0];
-                const dateElement = item.getElementsByTagName('date')[0];
+            if (statesContainer) {
+                // Проходимо по всіх дочірніх елементах (які повинні бути <state0>, <state1> і т.д.)
+                for (let i = 0; i < statesContainer.children.length; i++) {
+                    const stateElement = statesContainer.children[i];
+                    
+                    const regionElement = stateElement.getElementsByTagName('name')[0];
+                    const alertElement = stateElement.getElementsByTagName('alertnow')[0];
 
-                if (regionElement && alertElement) {
-                    const regionName = regionElement.textContent.trim();
-                    // Конвертуємо "1" або "0" у true/false
-                    const isAlert = alertElement.textContent.trim() === '1'; 
-                    const date = dateElement ? dateElement.textContent.trim() : 'N/A';
+                    if (regionElement && alertElement) {
+                        const regionName = regionElement.textContent.trim();
+                        // Конвертуємо "true" або "false" у логічне true/false
+                        const isAlert = alertElement.textContent.trim().toLowerCase() === 'true'; 
 
-                    alerts.push({
-                        region: regionName,
-                        alert: isAlert,
-                        date: date
-                    });
+                        alerts.push({
+                            region: regionName,
+                            alert: isAlert
+                        });
+                    }
                 }
             }
+            
             return alerts;
         }
 
@@ -389,6 +393,7 @@
                 
                 const response = await fetch(API_URL);
                 
+                // Якщо виникає помилка CORS, вона зазвичай ловиться тут (response.ok буде false)
                 if (!response.ok) {
                     statusMessage.textContent = `❌ Помилка API: HTTP ${response.status}`;
                     throw new Error(`Помилка HTTP: ${response.status}`);
@@ -407,7 +412,8 @@
                 
             } catch (error) {
                 console.error('Помилка при отриманні даних API:', error);
-                statusMessage.textContent = '⚠️ Помилка отримання даних (можливо, CORS)';
+                // Навіть на GitHub Pages іноді можуть виникати проблеми, але найімовірніше це помилка парсингу, яку ми щойно виправили.
+                statusMessage.textContent = '⚠️ Помилка отримання даних. Перевірте консоль.';
                 return null; 
             }
         }
