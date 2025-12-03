@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта Тривог України (XML API + Dev)</title>
+    <style>
+        /* =================================
+        == CSS СТИЛІ (Залишилися без змін) 
+        =================================
+        */
+        :root {
+            --color-bg: #111111;
+            --color-text: #F5F5F5;
+            --color-red-danger: #CC0000;
+            --color-red-dark: #800000;
+            --color-black-light: #222222;
+            --color-border: #444444;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Контейнер карти (імітація карти України) */
+        .map-container {
+            width: 95%;
+            max-width: 1100px;
+            height: 700px;
+            border: 2px solid var(--color-border);
+            margin: 50px 0 20px 0;
+            position: relative;
+            background-color: var(--color-black-light);
+            box-shadow: 0 0 20px rgba(204, 0, 0, 0.3);
+        }
+
+        /* Стилі для ОБЛАСТЕЙ */
+        .oblast {
+            position: absolute;
+            background-color: var(--color-black-light);
+            border: 1px solid var(--color-border);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+            cursor: default;
+            color: var(--color-text);
+            font-weight: bold;
+            font-size: 10px;
+            line-height: 1.1;
+            padding: 5px;
+            box-sizing: border-box;
+            border-radius: 2px;
+            z-index: 10;
+        }
+        
+        /* Стиль для активної тривоги */
+        .alert {
+            background-color: var(--color-red-danger) !important;
+            border-color: var(--color-red-danger) !important;
+            box-shadow: 0 0 15px var(--color-red-danger), 0 0 5px var(--color-red-danger) inset;
+            animation: pulse-red 1s infinite alternate;
+            color: white;
+            z-index: 20; 
+        }
+
+        /* Анімація для тривоги */
+        @keyframes pulse-red {
+            from { opacity: 1; }
+            to { opacity: 0.8; }
+        }
+
+        /* =================================
+        == КНОПКА РОЗРОБНИКА та ІНФО 
+        =================================
+        */
+        .info-panel {
+             position: absolute;
+             top: 10px;
+             left: 10px;
+             color: var(--color-red-danger);
+             font-size: 12px;
+             z-index: 100;
+        }
+        
+        .dev-login-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            font-size: 10px;
+            background-color: transparent;
+            color: var(--color-red-dark);
+            border: 1px solid var(--color-red-dark);
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background-color 0.3s, color 0.3s;
+            z-index: 100;
+        }
+
+        .dev-login-btn:hover {
+            background-color: var(--color-red-dark);
+            color: var(--color-text);
+        }
+
+        /* =================================
+        == МЕНЮ РОЗРОБНИКА 
+        =================================
+        */
+        .dev-menu {
+            margin-top: 20px;
+            padding: 20px;
+            border: 2px solid var(--color-red-danger);
+            background-color: var(--color-black-light);
+            display: none; 
+            width: 95%;
+            max-width: 1100px;
+            box-shadow: 0 0 15px rgba(204, 0, 0, 0.5);
+        }
+
+        .dev-menu h3 {
+            color: var(--color-red-danger);
+            text-align: center;
+            margin-top: 0;
+            border-bottom: 1px solid var(--color-red-dark);
+            padding-bottom: 10px;
+        }
+
+        .dev-menu .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .dev-menu button {
+            background-color: var(--color-red-dark);
+            color: var(--color-text);
+            border: none;
+            padding: 5px 10px;
+            margin: 3px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+            font-size: 11px;
+        }
+
+        .dev-menu button.active-alert {
+            background-color: var(--color-red-danger);
+            box-shadow: 0 0 10px var(--color-red-danger);
+        }
+
+        .dev-menu button:hover {
+            background-color: var(--color-red-danger);
+        }
+
+        /* =================================
+        == МОДАЛЬНЕ ВІКНО ВХОДУ 
+        =================================
+        */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 200;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8); 
+        }
+
+        .modal-content {
+            background-color: var(--color-black-light);
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid var(--color-red-danger);
+            width: 80%; 
+            max-width: 300px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(204, 0, 0, 0.5);
+        }
+
+        .modal-content input {
+            width: 90%;
+            padding: 10px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid var(--color-border);
+            box-sizing: border-box;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        .modal-content button {
+            background-color: var(--color-red-dark);
+            color: white;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .modal-content button:hover {
+            background-color: var(--color-red-danger);
+        }
+
+        /* =================================
+        == ПОЗИЦІОНУВАННЯ ОБЛАСТЕЙ (ІМІТАЦІЯ КАРТИ)
+        =================================
+        */
+        #АРК, #Севастополь { top: 85%; left: 50%; width: 10%; height: 10%; }
+        #Волинська { top: 5%; left: 10%; width: 10%; height: 15%; }
+        #Вінницька { top: 40%; left: 30%; width: 10%; height: 15%; }
+        #Дніпропетровська { top: 45%; left: 60%; width: 15%; height: 15%; }
+        #Донецька { top: 40%; left: 80%; width: 15%; height: 15%; }
+        #Житомирська { top: 20%; left: 35%; width: 10%; height: 15%; }
+        #Закарпатська { top: 40%; left: 0%; width: 8%; height: 10%; }
+        #Запорізька { top: 60%; left: 65%; width: 15%; height: 15%; }
+        #ІваноФранківська { top: 25%; left: 10%; width: 10%; height: 10%; }
+        #Київ, #Київська { top: 25%; left: 45%; width: 10%; height: 15%; }
+        #Кіровоградська { top: 55%; left: 50%; width: 10%; height: 15%; }
+        #Луганська { top: 25%; left: 80%; width: 15%; height: 15%; }
+        #Львівська { top: 15%; left: 10%; width: 10%; height: 10%; }
+        #Миколаївська { top: 70%; left: 40%; width: 10%; height: 15%; }
+        #Одеська { top: 70%; left: 20%; width: 15%; height: 15%; }
+        #Полтавська { top: 40%; left: 55%; width: 10%; height: 15%; }
+        #Рівненська { top: 10%; left: 20%; width: 10%; height: 15%; }
+        #Сумська { top: 15%; left: 60%; width: 10%; height: 15%; }
+        #Тернопільська { top: 25%; left: 20%; width: 10%; height: 15%; }
+        #Харківська { top: 25%; left: 70%; width: 10%; height: 15%; }
+        #Херсонська { top: 75%; left: 55%; width: 10%; height: 10%; }
+        #Хмельницька { top: 25%; left: 30%; width: 10%; height: 15%; }
+        #Черкаська { top: 45%; left: 45%; width: 10%; height: 15%; }
+        #Чернівецька { top: 40%; left: 15%; width: 8%; height: 10%; }
+        #Чернігівська { top: 5%; left: 45%; width: 10%; height: 15%; }
+
+        /* Поправки для кращого вигляду міст */
+        #Київ { z-index: 30; background-color: #CC0000; border-radius: 50%; width: 30px; height: 30px; font-size: 8px; left: 47%; top: 30%;}
+        #Севастополь { z-index: 30; background-color: #CC0000; border-radius: 50%; width: 25px; height: 25px; font-size: 8px; left: 51%; top: 88%;}
+    </style>
+</head>
+<body>
+
+    <div class="info-panel">
+        <p id="status-message">🔄 Очікування першого оновлення...</p>
+    </div>
+
+    <button class="dev-login-btn" onclick="openLoginModal()">
+        Увійти як Розробник
+    </button>
+
+    <div class="map-container">
+        <div id="АРК" class="oblast">АР Крим</div>
+        <div id="Волинська" class="oblast">Волинська</div>
+        <div id="Вінницька" class="oblast">Вінницька</div>
+        <div id="Дніпропетровська" class="oblast">Дніпропетровська</div>
+        <div id="Донецька" class="oblast">Донецька</div>
+        <div id="Житомирська" class="oblast">Житомирська</div>
+        <div id="Закарпатська" class="oblast">Закарпатська</div>
+        <div id="Запорізька" class="oblast">Запорізька</div>
+        <div id="ІваноФранківська" class="oblast">Ів.-Франківська</div>
+        <div id="Київ" class="oblast">М. Київ</div>
+        <div id="Київська" class="oblast">Київська</div>
+        <div id="Кіровоградська" class="oblast">Кіровоградська</div>
+        <div id="Луганська" class="oblast">Луганська</div>
+        <div id="Львівська" class="oblast">Львівська</div>
+        <div id="Миколаївська" class="oblast">Миколаївська</div>
+        <div id="Одеська" class="oblast">Одеська</div>
+        <div id="Полтавська" class="oblast">Полтавська</div>
+        <div id="Рівненська" class="oblast">Рівненська</div>
+        <div id="Севастополь" class="oblast">М. Севастополь</div>
+        <div id="Сумська" class="oblast">Сумська</div>
+        <div id="Тернопільська" class="oblast">Тернопільська</div>
+        <div id="Харківська" class="oblast">Харківська</div>
+        <div id="Херсонська" class="oblast">Херсонська</div>
+        <div id="Хмельницька" class="oblast">Хмельницька</div>
+        <div id="Черкаська" class="oblast">Черкаська</div>
+        <div id="Чернівецька" class="oblast">Чернівецька</div>
+        <div id="Чернігівська" class="oblast">Чернігівська</div>
+    </div>
+
+    <div class="dev-menu" id="devMenu">
+        <h3>🛠️ Меню Розробника: Ручне Керування Тривогою (Імітація)</h3>
+        <p>Ці кнопки імітують вмикання тривоги. **Автоматичне оновлення з API продовжить роботу!**</p>
+        <div class="controls" id="devControls">
+            </div>
+    </div>
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h4>Вхід для Розробників</h4>
+            <input type="text" id="username" placeholder="Логін: admin">
+            <input type="password" id="password" placeholder="Пароль: admin">
+            <button onclick="login()">Увійти</button>
+            <p id="login-message" style="color: var(--color-red-danger);"></p>
+        </div>
+    </div>
+
+    <script>
+        /* =================================
+        == JAVASCRIPT ЛОГІКА ТА ІНТЕГРАЦІЯ XML API
+        =================================
+        */
+
+        const API_URL = 'https://ubilling.net.ua/aerialalerts/?xml=true';
+        const API_INTERVAL = 10000; // Оновлення кожні 10 секунд
+        const statusMessage = document.getElementById('status-message');
+
+        const oblasts = [
+            "Автономна Республіка Крим", "Волинська область", "Вінницька область", "Дніпропетровська область", 
+            "Донецька область", "Житомирська область", "Закарпатська область", "Запорізька область", 
+            "Івано-Франківська область", "м. Київ", "Київська область", "Кіровоградська область", 
+            "Луганська область", "Львівська область", "Миколаївська область", "Одеська область", 
+            "Полтавська область", "Рівненська область", "м. Севастополь", "Сумська область", 
+            "Тернопільська область", "Харківська область", "Херсонська область", "Хмельницька область", 
+            "Черкаська область", "Чернівецька область", "Чернігівська область"
+        ];
+        
+        /**
+         * Перетворює назву області з API у внутрішній ID елемента на карті.
+         */
+        function createId(name) {
+            if (!name) return '';
+            const cleanName = name.trim();
+            if (cleanName === "Автономна Республіка Крим") return "АРК";
+            if (cleanName === "м. Київ") return "Київ";
+            if (cleanName === "м. Севастополь") return "Севастополь";
+            if (cleanName === "Івано-Франківська область") return "ІваноФранківська";
+            
+            // Видаляємо "область" та пробіли/крапки для ID
+            return cleanName.replace(' область', '').replace(/[\s\.\-]/g, '');
+        }
+
+        /**
+         * Парсить XML-рядок і повертає масив об'єктів з даними про тривоги.
+         */
+        function parseXmlAlerts(xmlString) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+            
+            // Перевірка на помилки парсингу XML
+            if (xmlDoc.getElementsByTagName("parsererror").length) {
+                console.error("Помилка парсингу XML:", xmlDoc.getElementsByTagName("parsererror")[0].textContent);
+                return null;
+            }
+
+            const alerts = [];
+            
+            // Припускаємо, що структура XML містить теги <item>
+            const items = xmlDoc.getElementsByTagName('item'); 
+            
+            for (let item of items) {
+                const regionElement = item.getElementsByTagName('region')[0];
+                const alertElement = item.getElementsByTagName('alert')[0];
+                const dateElement = item.getElementsByTagName('date')[0];
+
+                if (regionElement && alertElement) {
+                    const regionName = regionElement.textContent.trim();
+                    // Конвертуємо "1" або "0" у true/false
+                    const isAlert = alertElement.textContent.trim() === '1'; 
+                    const date = dateElement ? dateElement.textContent.trim() : 'N/A';
+
+                    alerts.push({
+                        region: regionName,
+                        alert: isAlert,
+                        date: date
+                    });
+                }
+            }
+            return alerts;
+        }
+
+        /**
+         * Надсилає запит до API та повертає дані.
+         */
+        async function getAlertsFromAPI() {
+            try {
+                statusMessage.textContent = '🔄 Оновлення даних...';
+                
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    statusMessage.textContent = `❌ Помилка API: HTTP ${response.status}`;
+                    throw new Error(`Помилка HTTP: ${response.status}`);
+                }
+
+                const xmlText = await response.text(); 
+                const data = parseXmlAlerts(xmlText);
+                
+                if (data && data.length > 0) {
+                    statusMessage.textContent = '✅ Оновлено з API: ' + new Date().toLocaleTimeString();
+                } else {
+                    statusMessage.textContent = '⚠️ API не повернуло даних про тривоги.';
+                }
+                
+                return data;
+                
+            } catch (error) {
+                console.error('Помилка при отриманні даних API:', error);
+                statusMessage.textContent = '⚠️ Помилка отримання даних (можливо, CORS)';
+                return null; 
+            }
+        }
+
+        /**
+         * Оновлює вигляд карти на основі даних API.
+         */
+        function updateMap(apiData) {
+            if (!Array.isArray(apiData)) return;
+
+            // 1. Спочатку вимикаємо всі тривоги
+            oblasts.forEach(oblastName => {
+                const id = createId(oblastName);
+                const regionElement = document.getElementById(id);
+                if (regionElement) {
+                    regionElement.classList.remove('alert');
+                }
+            });
+
+            // 2. Встановлюємо тривогу на основі API
+            apiData.forEach(item => {
+                const regionId = createId(item.region); 
+                const regionElement = document.getElementById(regionId);
+                
+                if (regionElement) {
+                    if (item.alert === true) {
+                        regionElement.classList.add('alert');
+                    } 
+                }
+            });
+
+            // 3. Оновлюємо стан кнопок Dev Menu, якщо воно відкрите
+            if (devMenu.style.display === 'block') {
+                generateControls();
+            }
+        }
+
+        /**
+         * Основна функція для запуску оновлення
+         */
+        async function checkAndRefresh() {
+            const data = await getAlertsFromAPI();
+            
+            if (data) {
+                updateMap(data);
+            }
+        }
+
+        // =================================
+        // ЛОГІКА ВХОДУ ТА МЕНЮ РОЗРОБНИКА (без змін)
+        // =================================
+        const modal = document.getElementById('loginModal');
+        const devMenu = document.getElementById('devMenu');
+        const loginBtn = document.querySelector('.dev-login-btn');
+        const loginMessage = document.getElementById('login-message');
+        const controlsContainer = document.getElementById('devControls');
+
+
+        function generateControls() {
+            controlsContainer.innerHTML = ''; 
+
+            oblasts.forEach(oblastName => {
+                const id = createId(oblastName);
+                const shortName = id.replace('АвтономнаРеспубліка', 'АРК');
+                
+                const button = document.createElement('button');
+                button.id = `toggle-${id}`;
+                
+                const region = document.getElementById(id);
+                const isAlertActive = region && region.classList.contains('alert');
+                button.textContent = `${shortName} (${isAlertActive ? 'УВІМК' : 'Вимк'})`;
+                if (isAlertActive) button.classList.add('active-alert');
+
+                button.onclick = () => toggleAlert(id, `toggle-${id}`); 
+                
+                controlsContainer.appendChild(button);
+            });
+        }
+
+        function openLoginModal() {
+            loginBtn.style.display = 'none'; 
+            modal.style.display = 'block';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            loginMessage.textContent = '';
+        }
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (username === 'admin' && password === 'admin') {
+                modal.style.display = 'none';
+                devMenu.style.display = 'block'; 
+                loginBtn.style.display = 'none';
+                generateControls(); 
+            } else {
+                loginMessage.textContent = 'Невірний логін або пароль.';
+                loginBtn.style.display = 'block'; 
+            }
+        }
+
+        /**
+         * Перемикає стан тривоги (ручна імітація розробником).
+         */
+        function toggleAlert(regionId, buttonId) {
+            const region = document.getElementById(regionId);
+            const button = document.getElementById(buttonId);
+            
+            if (!region || !button) return;
+
+            const isAlertActive = region.classList.contains('alert');
+            const regionName = button.textContent.split(' ')[0];
+
+            if (isAlertActive) {
+                region.classList.remove('alert');
+                button.classList.remove('active-alert');
+                button.textContent = `${regionName} (Вимк)`;
+            } else {
+                region.classList.add('alert');
+                button.classList.add('active-alert');
+                button.textContent = `${regionName} (УВІМК)`;
+            }
+            
+            console.log(`[DEV MENU] Регіон ${regionName} - Тривога: ${!isAlertActive ? 'УВІМКНЕНО (Ручне керування)' : 'ВИМКНЕНО (Ручне керування)'}`);
+        }
+
+        // =================================
+        // ІНІЦІАЛІЗАЦІЯ
+        // =================================
+
+        // 1. Перше завантаження та запуск таймера
+        checkAndRefresh(); 
+        setInterval(checkAndRefresh, API_INTERVAL); 
+
+    </script>
+</body>
+</html>
